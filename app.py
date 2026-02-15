@@ -27,8 +27,7 @@ st.set_page_config(page_title="Student Dropout Prediction", layout="wide")
 
 st.title("Student Dropout & Academic Success Prediction")
 
-
-# Dataset upload
+# Upload dataset
 uploaded_file = st.file_uploader("Upload Dataset", type=["csv"])
 
 if uploaded_file is not None:
@@ -38,21 +37,26 @@ if uploaded_file is not None:
     st.subheader("Dataset Preview")
     st.dataframe(df.head())
 
-
-    # FIXED TARGET COLUMN
+    # target column fixed
     target_column = "target"
 
+    if target_column not in df.columns:
+        st.error("Target column 'target' not found in dataset")
+        st.stop()
 
     # Encode target
     label_encoder = LabelEncoder()
     df[target_column] = label_encoder.fit_transform(df[target_column])
 
-
-    # Split features and target
     X = df.drop(target_column, axis=1)
     y = df[target_column]
 
+    # Encode categorical columns
+    for col in X.columns:
+        if X[col].dtype == "object":
+            X[col] = LabelEncoder().fit_transform(X[col])
 
+    # Split
     X_train, X_test, y_train, y_test = train_test_split(
         X, y,
         test_size=0.2,
@@ -60,13 +64,10 @@ if uploaded_file is not None:
         stratify=y
     )
 
-
-    # Scale features
+    # Scale
     scaler = StandardScaler()
-
     X_train = scaler.fit_transform(X_train)
     X_test = scaler.transform(X_test)
-
 
     # Models
     models = {
@@ -77,7 +78,6 @@ if uploaded_file is not None:
         "Random Forest": RandomForestClassifier(),
         "XGBoost": XGBClassifier(eval_metric="mlogloss")
     }
-
 
     # Train and evaluate
     results = []
@@ -122,14 +122,10 @@ if uploaded_file is not None:
             "MCC": mcc
         })
 
-
     results_df = pd.DataFrame(results)
 
-
-    st.subheader("Model Evaluation Results")
-
-    st.dataframe(results_df)
-
+    st.subheader("Evaluation Metrics")
+    st.dataframe(results_df, use_container_width=True)
 
     # Best model
     best_model_name = results_df.sort_values(
@@ -137,20 +133,16 @@ if uploaded_file is not None:
         ascending=False
     ).iloc[0]["Model"]
 
-
     st.success(f"Best Model: {best_model_name}")
-
 
     best_model = models[best_model_name]
 
     y_pred_best = best_model.predict(X_test)
 
-
-    # Confusion Matrix
+    # Confusion matrix
     st.subheader("Confusion Matrix Heatmap")
 
     cm = confusion_matrix(y_test, y_pred_best)
-
 
     fig, ax = plt.subplots()
 
