@@ -41,7 +41,7 @@ st.write("BITS Pilani WILP - Machine Learning Assignment 2")
 # -------------------------
 
 try:
-    df = pd.read_csv("students_dropout_academic_success.csv")
+    df = pd.read_csv("students_dropout.csv")
 except:
     st.error("Dataset file not found. Please ensure CSV is in repo.")
     st.stop()
