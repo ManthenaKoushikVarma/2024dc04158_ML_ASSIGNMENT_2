@@ -1,22 +1,11 @@
-# ============================================================
-# Student Dropout Prediction - Streamlit App
-# ML Assignment 2
-# ============================================================
-
 import streamlit as st
 import pandas as pd
 import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
 
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
-
-from sklearn.linear_model import LogisticRegression
-from sklearn.tree import DecisionTreeClassifier
-from sklearn.neighbors import KNeighborsClassifier
-from sklearn.naive_bayes import GaussianNB
-from sklearn.ensemble import RandomForestClassifier
-from xgboost import XGBClassifier
-
 from sklearn.metrics import (
     accuracy_score,
     precision_score,
@@ -27,183 +16,197 @@ from sklearn.metrics import (
     confusion_matrix
 )
 
-# ============================================================
-# Page Config
-# ============================================================
+from sklearn.linear_model import LogisticRegression
+from sklearn.tree import DecisionTreeClassifier
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.naive_bayes import GaussianNB
+from sklearn.ensemble import RandomForestClassifier
+from xgboost import XGBClassifier
+
+
+# -------------------------
+# PAGE CONFIG
+# -------------------------
 
 st.set_page_config(
     page_title="Student Dropout Prediction",
-    page_icon="🎓",
     layout="wide"
 )
 
-st.title("🎓 Student Dropout Prediction System")
-st.write("Machine Learning Assignment 2 - Model Comparison & Prediction")
+st.title("🎓 Student Dropout Prediction - ML Assignment")
+st.write("BITS Pilani WILP - Machine Learning Assignment 2")
 
-# ============================================================
-# Upload Dataset
-# ============================================================
+# -------------------------
+# LOAD DATA
+# -------------------------
 
-uploaded_file = st.file_uploader(
-    "Upload Student Dropout Dataset (CSV)",
-    type=["csv"]
+try:
+    df = pd.read_csv("students_dropout_academic_success.csv")
+except:
+    st.error("Dataset file not found. Please ensure CSV is in repo.")
+    st.stop()
+
+st.subheader("Dataset Preview")
+st.dataframe(df.head())
+
+# -------------------------
+# TARGET COLUMN
+# -------------------------
+
+target_column = "target"
+
+if target_column not in df.columns:
+    st.error("Target column 'target' not found in dataset.")
+    st.stop()
+
+# -------------------------
+# FEATURE & TARGET SPLIT
+# -------------------------
+
+X = df.drop(target_column, axis=1)
+y = df[target_column]
+
+# -------------------------
+# TRAIN TEST SPLIT
+# -------------------------
+
+X_train, X_test, y_train, y_test = train_test_split(
+    X, y,
+    test_size=0.2,
+    random_state=42
 )
 
-if uploaded_file is not None:
+# -------------------------
+# SCALING
+# -------------------------
 
-    df = pd.read_csv(uploaded_file)
+scaler = StandardScaler()
 
-    st.subheader("Dataset Preview")
-    st.dataframe(df.head())
+X_train = scaler.fit_transform(X_train)
+X_test = scaler.transform(X_test)
 
-    # ========================================================
-    # Preprocessing
-    # ========================================================
+# -------------------------
+# MODELS
+# -------------------------
 
-    # Target column
-    target_column = "target"
+models = {
 
-    # Convert target to binary
-    df[target_column] = df[target_column].map({
-        "Graduate": 1,
-        "Dropout": 0,
-        "Enrolled": 1   # treating enrolled as non-dropout
-    })
-
-    # Features and target
-    X = df.drop(target_column, axis=1)
-    y = df[target_column]
-
-    # Train test split
-    X_train, X_test, y_train, y_test = train_test_split(
-        X, y,
-        test_size=0.2,
-        random_state=42,
-        stratify=y
-    )
-
-    # Scaling
-    scaler = StandardScaler()
-
-    X_train = scaler.fit_transform(X_train)
-    X_test = scaler.transform(X_test)
-
-    # ========================================================
-    # Models
-    # ========================================================
-
-    models = {
-
-        "Logistic Regression":
+    "Logistic Regression":
         LogisticRegression(max_iter=1000),
 
-        "Decision Tree":
+    "Decision Tree":
         DecisionTreeClassifier(),
 
-        "KNN":
+    "KNN":
         KNeighborsClassifier(),
 
-        "Naive Bayes":
+    "Naive Bayes":
         GaussianNB(),
 
-        "Random Forest":
+    "Random Forest":
         RandomForestClassifier(),
 
-        "XGBoost":
-        XGBClassifier(use_label_encoder=False, eval_metric='logloss')
-    }
+    "XGBoost":
+        XGBClassifier(
+            use_label_encoder=False,
+            eval_metric='logloss'
+        )
+}
 
-    # ========================================================
-    # Train Models and Evaluate
-    # ========================================================
+# -------------------------
+# TRAIN & EVALUATE
+# -------------------------
 
-    results = []
+results = []
 
-    for name, model in models.items():
+for name, model in models.items():
 
-        model.fit(X_train, y_train)
+    model.fit(X_train, y_train)
 
-        y_pred = model.predict(X_test)
-        y_prob = model.predict_proba(X_test)[:,1]
+    y_pred = model.predict(X_test)
 
-        results.append({
+    y_prob = model.predict_proba(X_test)[:, 1]
 
-            "Model": name,
+    results.append({
 
-            "Accuracy": accuracy_score(y_test, y_pred),
+        "Model": name,
+        "Accuracy": accuracy_score(y_test, y_pred),
+        "AUC": roc_auc_score(y_test, y_prob),
+        "Precision": precision_score(y_test, y_pred),
+        "Recall": recall_score(y_test, y_pred),
+        "F1 Score": f1_score(y_test, y_pred),
+        "MCC": matthews_corrcoef(y_test, y_pred)
+    })
 
-            "AUC": roc_auc_score(y_test, y_prob),
+results_df = pd.DataFrame(results)
 
-            "Precision": precision_score(y_test, y_pred),
+# -------------------------
+# SHOW METRICS TABLE
+# -------------------------
 
-            "Recall": recall_score(y_test, y_pred),
+st.subheader("Model Evaluation Metrics")
 
-            "F1": f1_score(y_test, y_pred),
+st.dataframe(
+    results_df.sort_values("Accuracy", ascending=False),
+    use_container_width=True
+)
 
-            "MCC": matthews_corrcoef(y_test, y_pred)
-        })
+# -------------------------
+# BEST MODEL
+# -------------------------
 
-    results_df = pd.DataFrame(results)
+best_model_name = results_df.sort_values(
+    "Accuracy",
+    ascending=False
+).iloc[0]["Model"]
 
-    # ========================================================
-    # Show Results Table
-    # ========================================================
+best_model = models[best_model_name]
 
-    st.subheader("Model Comparison Table")
+st.success(f"Best Model: {best_model_name}")
 
-    st.dataframe(
-        results_df.sort_values(by="Accuracy", ascending=False),
-        use_container_width=True
-    )
+# -------------------------
+# CONFUSION MATRIX
+# -------------------------
 
-    # ========================================================
-    # Best Model
-    # ========================================================
+y_pred = best_model.predict(X_test)
 
-    best_model_name = results_df.sort_values(
-        by="Accuracy",
-        ascending=False
-    ).iloc[0]["Model"]
+cm = confusion_matrix(y_test, y_pred)
 
-    st.success(f"Best Model: {best_model_name}")
+st.subheader("Confusion Matrix")
 
-    best_model = models[best_model_name]
+fig, ax = plt.subplots()
 
-    # ========================================================
-    # Confusion Matrix
-    # ========================================================
+sns.heatmap(
+    cm,
+    annot=True,
+    fmt='d',
+    cmap='Blues',
+    ax=ax
+)
 
-    y_pred = best_model.predict(X_test)
+ax.set_xlabel("Predicted")
+ax.set_ylabel("Actual")
+ax.set_title(f"Confusion Matrix - {best_model_name}")
 
-    cm = confusion_matrix(y_test, y_pred)
+st.pyplot(fig)
 
-    st.subheader("Confusion Matrix")
+# -------------------------
+# SHOW METRICS FOR BEST MODEL
+# -------------------------
 
-    st.write(cm)
+accuracy = accuracy_score(y_test, y_pred)
+precision = precision_score(y_test, y_pred)
+recall = recall_score(y_test, y_pred)
+f1 = f1_score(y_test, y_pred)
+mcc = matthews_corrcoef(y_test, y_pred)
 
-    # ========================================================
-    # Prediction Section
-    # ========================================================
+st.subheader("Best Model Metrics")
 
-    st.subheader("Make Prediction")
+col1, col2, col3 = st.columns(3)
 
-    sample_index = st.number_input(
-        "Enter sample index",
-        min_value=0,
-        max_value=len(X_test)-1,
-        value=0
-    )
+col1.metric("Accuracy", f"{accuracy:.4f}")
+col2.metric("Precision", f"{precision:.4f}")
+col3.metric("Recall", f"{recall:.4f}")
 
-    if st.button("Predict"):
-
-        sample = X_test[int(sample_index)].reshape(1,-1)
-
-        prediction = best_model.predict(sample)[0]
-
-        if prediction == 1:
-            st.success("Prediction: Student will Graduate / Continue")
-        else:
-            st.error("Prediction: Student will Dropout")
-
-else:
-    st.info("Please upload dataset to continue")
+col1.metric("F1 Score", f"{f1:.4f}")
+col2.metric("MCC", f"{mcc:.4f}")
