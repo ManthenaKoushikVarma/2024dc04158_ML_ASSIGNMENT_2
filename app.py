@@ -23,64 +23,120 @@ from sklearn.ensemble import RandomForestClassifier
 from xgboost import XGBClassifier
 
 
-st.set_page_config(page_title="Student Dropout Prediction", layout="wide")
+# -----------------------------
+# Page Config
+# -----------------------------
+st.set_page_config(
+    page_title="Student Dropout Prediction",
+    layout="wide"
+)
 
 st.title("Student Dropout & Academic Success Prediction")
 
-# Upload dataset
-uploaded_file = st.file_uploader("Upload Dataset", type=["csv"])
+
+# -----------------------------
+# Upload Dataset
+# -----------------------------
+uploaded_file = st.file_uploader(
+    "Upload Dataset (.csv)",
+    type=["csv"]
+)
 
 if uploaded_file is not None:
 
     df = pd.read_csv(uploaded_file)
 
     st.subheader("Dataset Preview")
-    st.dataframe(df.head())
+    st.dataframe(df.head(), use_container_width=True)
 
-    # target column fixed
+
+    # -----------------------------
+    # Target Column
+    # -----------------------------
     target_column = "target"
 
     if target_column not in df.columns:
         st.error("Target column 'target' not found in dataset")
         st.stop()
 
-    # Encode target
+
+    # -----------------------------
+    # Encode Target
+    # -----------------------------
     label_encoder = LabelEncoder()
-    df[target_column] = label_encoder.fit_transform(df[target_column])
+    y = label_encoder.fit_transform(df[target_column])
 
     X = df.drop(target_column, axis=1)
-    y = df[target_column]
 
-    # Encode categorical columns
-    for col in X.columns:
-        if X[col].dtype == "object":
-            X[col] = LabelEncoder().fit_transform(X[col])
 
-    # Split
+    # -----------------------------
+    # Train Test Split
+    # -----------------------------
     X_train, X_test, y_train, y_test = train_test_split(
-        X, y,
+        X,
+        y,
         test_size=0.2,
         random_state=42,
         stratify=y
     )
 
-    # Scale
+
+    # -----------------------------
+    # Feature Scaling
+    # -----------------------------
     scaler = StandardScaler()
+
     X_train = scaler.fit_transform(X_train)
     X_test = scaler.transform(X_test)
 
-    # Models
+
+    # -----------------------------
+    # Models (Optimized)
+    # -----------------------------
     models = {
-        "Logistic Regression": LogisticRegression(max_iter=1000),
-        "Decision Tree": DecisionTreeClassifier(),
-        "KNN": KNeighborsClassifier(),
-        "Naive Bayes": GaussianNB(),
-        "Random Forest": RandomForestClassifier(),
-        "XGBoost": XGBClassifier(eval_metric="mlogloss")
+
+        "Logistic Regression":
+            LogisticRegression(max_iter=500),
+
+        "Decision Tree":
+            DecisionTreeClassifier(max_depth=10),
+
+        "KNN":
+            KNeighborsClassifier(n_neighbors=5),
+
+        "Naive Bayes":
+            GaussianNB(),
+
+        "Random Forest":
+            RandomForestClassifier(
+                n_estimators=100,
+                max_depth=10,
+                random_state=42
+            ),
+
+        "XGBoost":
+            XGBClassifier(
+                n_estimators=100,
+                max_depth=6,
+                learning_rate=0.1,
+                eval_metric="mlogloss",
+                use_label_encoder=False,
+                verbosity=0
+            )
     }
 
-    # Train and evaluate
+
+    # -----------------------------
+    # Train Models & Evaluate
+    # -----------------------------
+    st.subheader("Model Evaluation Metrics")
+
     results = []
+
+    best_model = None
+    best_accuracy = 0
+    best_model_name = ""
+
 
     for name, model in models.items():
 
@@ -92,15 +148,24 @@ if uploaded_file is not None:
         accuracy = accuracy_score(y_test, y_pred)
 
         precision = precision_score(
-            y_test, y_pred, average="weighted", zero_division=0
+            y_test,
+            y_pred,
+            average="weighted",
+            zero_division=0
         )
 
         recall = recall_score(
-            y_test, y_pred, average="weighted", zero_division=0
+            y_test,
+            y_pred,
+            average="weighted",
+            zero_division=0
         )
 
         f1 = f1_score(
-            y_test, y_pred, average="weighted", zero_division=0
+            y_test,
+            y_pred,
+            average="weighted",
+            zero_division=0
         )
 
         mcc = matthews_corrcoef(y_test, y_pred)
@@ -112,39 +177,42 @@ if uploaded_file is not None:
             average="weighted"
         )
 
+
         results.append({
             "Model": name,
-            "Accuracy": accuracy,
-            "AUC": auc,
-            "Precision": precision,
-            "Recall": recall,
-            "F1": f1,
-            "MCC": mcc
+            "Accuracy": round(accuracy, 4),
+            "AUC": round(auc, 4),
+            "Precision": round(precision, 4),
+            "Recall": round(recall, 4),
+            "F1": round(f1, 4),
+            "MCC": round(mcc, 4)
         })
+
+
+        # Track Best Model
+        if accuracy > best_accuracy:
+            best_accuracy = accuracy
+            best_model = model
+            best_model_name = name
+
 
     results_df = pd.DataFrame(results)
 
-    st.subheader("Evaluation Metrics")
     st.dataframe(results_df, use_container_width=True)
-
-    # Best model
-    best_model_name = results_df.sort_values(
-        by="Accuracy",
-        ascending=False
-    ).iloc[0]["Model"]
 
     st.success(f"Best Model: {best_model_name}")
 
-    best_model = models[best_model_name]
+
+    # -----------------------------
+    # Confusion Matrix Heatmap
+    # -----------------------------
+    st.subheader("Confusion Matrix Heatmap")
 
     y_pred_best = best_model.predict(X_test)
 
-    # Confusion matrix
-    st.subheader("Confusion Matrix Heatmap")
-
     cm = confusion_matrix(y_test, y_pred_best)
 
-    fig, ax = plt.subplots()
+    fig, ax = plt.subplots(figsize=(6, 4))
 
     sns.heatmap(
         cm,
