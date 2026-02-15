@@ -23,21 +23,13 @@ from sklearn.ensemble import RandomForestClassifier
 from xgboost import XGBClassifier
 
 
-# Page config
-st.set_page_config(
-    page_title="Student Dropout Prediction",
-    layout="wide"
-)
+st.set_page_config(page_title="Student Dropout Prediction", layout="wide")
 
 st.title("Student Dropout & Academic Success Prediction")
 
 
-# Upload dataset
-uploaded_file = st.file_uploader(
-    "Upload CSV Dataset",
-    type=["csv"]
-)
-
+# Dataset upload
+uploaded_file = st.file_uploader("Upload Dataset", type=["csv"])
 
 if uploaded_file is not None:
 
@@ -47,30 +39,29 @@ if uploaded_file is not None:
     st.dataframe(df.head())
 
 
-    # FIXED target column
+    # FIXED TARGET COLUMN
     target_column = "target"
 
 
-    # Encode target column
+    # Encode target
     label_encoder = LabelEncoder()
     df[target_column] = label_encoder.fit_transform(df[target_column])
 
 
-    # Split data
+    # Split features and target
     X = df.drop(target_column, axis=1)
     y = df[target_column]
 
 
     X_train, X_test, y_train, y_test = train_test_split(
-        X,
-        y,
+        X, y,
         test_size=0.2,
         random_state=42,
         stratify=y
     )
 
 
-    # Scale
+    # Scale features
     scaler = StandardScaler()
 
     X_train = scaler.fit_transform(X_train)
@@ -79,53 +70,37 @@ if uploaded_file is not None:
 
     # Models
     models = {
-
         "Logistic Regression": LogisticRegression(max_iter=1000),
-
         "Decision Tree": DecisionTreeClassifier(),
-
         "KNN": KNeighborsClassifier(),
-
         "Naive Bayes": GaussianNB(),
-
         "Random Forest": RandomForestClassifier(),
-
         "XGBoost": XGBClassifier(eval_metric="mlogloss")
-
     }
 
 
+    # Train and evaluate
     results = []
 
-
-    # Train & Evaluate
     for name, model in models.items():
 
         model.fit(X_train, y_train)
 
         y_pred = model.predict(X_test)
-
         y_prob = model.predict_proba(X_test)
-
 
         accuracy = accuracy_score(y_test, y_pred)
 
         precision = precision_score(
-            y_test, y_pred,
-            average="weighted",
-            zero_division=0
+            y_test, y_pred, average="weighted", zero_division=0
         )
 
         recall = recall_score(
-            y_test, y_pred,
-            average="weighted",
-            zero_division=0
+            y_test, y_pred, average="weighted", zero_division=0
         )
 
         f1 = f1_score(
-            y_test, y_pred,
-            average="weighted",
-            zero_division=0
+            y_test, y_pred, average="weighted", zero_division=0
         )
 
         mcc = matthews_corrcoef(y_test, y_pred)
@@ -137,9 +112,7 @@ if uploaded_file is not None:
             average="weighted"
         )
 
-
         results.append({
-
             "Model": name,
             "Accuracy": accuracy,
             "AUC": auc,
@@ -147,7 +120,6 @@ if uploaded_file is not None:
             "Recall": recall,
             "F1": f1,
             "MCC": mcc
-
         })
 
 
@@ -156,10 +128,7 @@ if uploaded_file is not None:
 
     st.subheader("Model Evaluation Results")
 
-    st.dataframe(
-        results_df,
-        use_container_width=True
-    )
+    st.dataframe(results_df)
 
 
     # Best model
@@ -180,14 +149,12 @@ if uploaded_file is not None:
     # Confusion Matrix
     st.subheader("Confusion Matrix Heatmap")
 
-
     cm = confusion_matrix(y_test, y_pred_best)
 
 
     fig, ax = plt.subplots()
 
     sns.heatmap(
-
         cm,
         annot=True,
         fmt="d",
@@ -195,17 +162,9 @@ if uploaded_file is not None:
         xticklabels=label_encoder.classes_,
         yticklabels=label_encoder.classes_,
         ax=ax
-
     )
-
 
     ax.set_xlabel("Predicted")
     ax.set_ylabel("Actual")
 
-
     st.pyplot(fig)
-
-
-else:
-
-    st.info("Upload a CSV dataset to begin.")
