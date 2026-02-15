@@ -1,19 +1,11 @@
 import streamlit as st
 import pandas as pd
+import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelEncoder, StandardScaler
-from sklearn.metrics import (
-    accuracy_score,
-    precision_score,
-    recall_score,
-    f1_score,
-    matthews_corrcoef,
-    roc_auc_score,
-    confusion_matrix
-)
 
 from sklearn.linear_model import LogisticRegression
 from sklearn.tree import DecisionTreeClassifier
@@ -22,24 +14,39 @@ from sklearn.naive_bayes import GaussianNB
 from sklearn.ensemble import RandomForestClassifier
 from xgboost import XGBClassifier
 
+from sklearn.metrics import (
+    accuracy_score,
+    precision_score,
+    recall_score,
+    f1_score,
+    roc_auc_score,
+    matthews_corrcoef,
+    confusion_matrix
+)
 
-# Page settings
+
+# -------------------------------------------------
+# Page Configuration
+# -------------------------------------------------
+
 st.set_page_config(
     page_title="Student Dropout Prediction",
     layout="wide"
 )
 
-st.title("Student Dropout & Academic Success Prediction")
+st.title("Student Dropout Prediction System")
 
 
-# Upload dataset option
+# -------------------------------------------------
+# Upload Dataset
+# -------------------------------------------------
+
 uploaded_file = st.file_uploader(
-    "Upload your dataset (CSV file)",
+    "Upload Dataset (CSV)",
     type=["csv"]
 )
 
 
-# Run only if file is uploaded
 if uploaded_file is not None:
 
     df = pd.read_csv(uploaded_file)
@@ -48,19 +55,28 @@ if uploaded_file is not None:
     st.dataframe(df.head(), use_container_width=True)
 
 
-    # Select target column
+    # -------------------------------------------------
+    # Select Target Column
+    # -------------------------------------------------
+
     target_column = st.selectbox(
         "Select Target Column",
         df.columns
     )
 
 
-    # Encode target
+    # -------------------------------------------------
+    # Encode Target
+    # -------------------------------------------------
+
     label_encoder = LabelEncoder()
     df[target_column] = label_encoder.fit_transform(df[target_column])
 
 
-    # Split features and target
+    # -------------------------------------------------
+    # Split Features and Target
+    # -------------------------------------------------
+
     X = df.drop(target_column, axis=1)
     y = df[target_column]
 
@@ -74,25 +90,46 @@ if uploaded_file is not None:
     )
 
 
-    # Scale features
+    # -------------------------------------------------
+    # Feature Scaling
+    # -------------------------------------------------
+
     scaler = StandardScaler()
 
     X_train = scaler.fit_transform(X_train)
     X_test = scaler.transform(X_test)
 
 
-    # Models
+    # -------------------------------------------------
+    # Model Definitions
+    # -------------------------------------------------
+
     models = {
-        "Logistic Regression": LogisticRegression(max_iter=1000),
-        "Decision Tree": DecisionTreeClassifier(),
-        "KNN": KNeighborsClassifier(),
-        "Naive Bayes": GaussianNB(),
-        "Random Forest": RandomForestClassifier(),
-        "XGBoost": XGBClassifier(eval_metric="mlogloss")
+
+        "Logistic Regression":
+            LogisticRegression(max_iter=1000),
+
+        "Decision Tree":
+            DecisionTreeClassifier(),
+
+        "KNN":
+            KNeighborsClassifier(),
+
+        "Naive Bayes":
+            GaussianNB(),
+
+        "Random Forest":
+            RandomForestClassifier(),
+
+        "XGBoost":
+            XGBClassifier(eval_metric="mlogloss")
     }
 
 
-    # Train and evaluate
+    # -------------------------------------------------
+    # Model Training and Evaluation
+    # -------------------------------------------------
+
     results = []
 
     for name, model in models.items():
@@ -100,6 +137,7 @@ if uploaded_file is not None:
         model.fit(X_train, y_train)
 
         y_pred = model.predict(X_test)
+
         y_prob = model.predict_proba(X_test)
 
         accuracy = accuracy_score(y_test, y_pred)
@@ -125,8 +163,6 @@ if uploaded_file is not None:
             zero_division=0
         )
 
-        mcc = matthews_corrcoef(y_test, y_pred)
-
         auc = roc_auc_score(
             y_test,
             y_prob,
@@ -134,13 +170,16 @@ if uploaded_file is not None:
             average="weighted"
         )
 
+        mcc = matthews_corrcoef(y_test, y_pred)
+
+
         results.append({
             "Model": name,
             "Accuracy": accuracy,
             "AUC": auc,
             "Precision": precision,
             "Recall": recall,
-            "F1": f1,
+            "F1 Score": f1,
             "MCC": mcc
         })
 
@@ -148,12 +187,25 @@ if uploaded_file is not None:
     results_df = pd.DataFrame(results)
 
 
-    # Show results
-    st.subheader("Model Evaluation Results")
-    st.dataframe(results_df, use_container_width=True)
+    # -------------------------------------------------
+    # Show Evaluation Table
+    # -------------------------------------------------
+
+    st.subheader("Model Evaluation Metrics")
+
+    st.dataframe(
+        results_df.sort_values(
+            by="Accuracy",
+            ascending=False
+        ),
+        use_container_width=True
+    )
 
 
-    # Best model
+    # -------------------------------------------------
+    # Best Model Selection
+    # -------------------------------------------------
+
     best_model_name = results_df.sort_values(
         by="Accuracy",
         ascending=False
@@ -165,13 +217,18 @@ if uploaded_file is not None:
 
     best_model = models[best_model_name]
 
-    y_pred_best = best_model.predict(X_test)
 
+    # -------------------------------------------------
+    # Confusion Matrix Heatmap
+    # -------------------------------------------------
 
-    # Confusion matrix heatmap
     st.subheader("Confusion Matrix Heatmap")
 
+
+    y_pred_best = best_model.predict(X_test)
+
     cm = confusion_matrix(y_test, y_pred_best)
+
 
     fig, ax = plt.subplots()
 
@@ -185,6 +242,7 @@ if uploaded_file is not None:
         ax=ax
     )
 
+
     ax.set_xlabel("Predicted")
     ax.set_ylabel("Actual")
 
@@ -192,4 +250,5 @@ if uploaded_file is not None:
 
 
 else:
-    st.info("Please upload a CSV dataset to begin.")
+
+    st.info("Please upload a dataset to begin.")
