@@ -61,7 +61,7 @@ if uploaded_file is not None:
     # ========================================================
 
     # Target column
-    target_column = "Target"
+    target_column = "target"
 
     # Convert target to binary
     df[target_column] = df[target_column].map({
